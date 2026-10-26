@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { loadMatches, type MatchesResponse } from '../api/matches';
+import { FavoriteButton } from '../components/FavoriteButton';
+import { useFavorites } from '../hooks/useFavorites';
 
 type MatchFilter = 'all' | 'upcoming' | 'finished';
 
@@ -30,6 +32,7 @@ function formatDate(value: string | null): string {
 export function MatchesScreen() {
   const [data, setData] = useState<MatchesResponse | null>(null);
   const [filter, setFilter] = useState<MatchFilter>('all');
+  const { favorites, isFavorite, toggle } = useFavorites();
 
   const matches = data?.matches.filter((match) => {
     if (filter === 'all') return true;
@@ -76,12 +79,16 @@ export function MatchesScreen() {
       {data ? (
         <FlatList
           data={matches}
+          extraData={favorites}
           keyExtractor={(match) => match.id}
           contentContainerStyle={styles.list}
           ListEmptyComponent={<Text style={styles.subtitle}>В этой категории пока нет матчей.</Text>}
           renderItem={({ item }) => (
             <View style={styles.card}>
-              <Text style={styles.status}>{statusLabels[item.status] ?? 'Статус уточняется'}</Text>
+              <View style={styles.cardHeader}>
+                <Text style={styles.status}>{statusLabels[item.status] ?? 'Статус уточняется'}</Text>
+                <FavoriteButton active={isFavorite(item.id)} onPress={() => toggle(item.id)} />
+              </View>
               <View style={styles.row}>
                 <Text style={styles.team}>{item.home}</Text>
                 <Text style={styles.score}>{item.score?.home ?? '—'}</Text>
@@ -116,7 +123,8 @@ const styles = StyleSheet.create({
   filterText: { fontSize: 13, color: '#333' },
   selectedFilterText: { color: '#fff' },
   card: { padding: 16, borderWidth: 1, borderColor: '#ddd', borderRadius: 8, marginBottom: 12 },
-  status: { color: '#666', fontSize: 12, marginBottom: 10 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  status: { color: '#666', fontSize: 12 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 6 },
   team: { flex: 1, fontSize: 17, color: '#222' },
   score: { fontSize: 18, fontWeight: '600', color: '#222' },
