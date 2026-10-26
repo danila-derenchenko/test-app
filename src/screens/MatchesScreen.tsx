@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { loadMatches, type MatchesResponse } from '../api/matches';
+
+type MatchFilter = 'all' | 'upcoming' | 'finished';
+
+const filters: { value: MatchFilter; label: string }[] = [
+  { value: 'all', label: 'Все' },
+  { value: 'upcoming', label: 'Предстоящие' },
+  { value: 'finished', label: 'Завершённые' },
+];
 
 const statusLabels: Record<string, string> = {
   scheduled: 'Предстоит',
@@ -21,6 +29,14 @@ function formatDate(value: string | null): string {
 
 export function MatchesScreen() {
   const [data, setData] = useState<MatchesResponse | null>(null);
+  const [filter, setFilter] = useState<MatchFilter>('all');
+
+  const matches = data?.matches.filter((match) => {
+    if (filter === 'all') return true;
+    // Перенесённые матчи ещё предстоят. Идущие и неизвестные статусы видны в «Все».
+    if (filter === 'upcoming') return match.status === 'scheduled' || match.status === 'postponed';
+    return match.status === 'finished';
+  }) ?? [];
 
   useEffect(() => {
     let cancelled = false;
@@ -38,11 +54,31 @@ export function MatchesScreen() {
       <Text style={styles.subtitle}>
         {data ? `Тур ${data.round} · ` : ''}Демонстрационные данные
       </Text>
+      <View style={styles.filters} accessibilityRole="radiogroup" accessibilityLabel="Статус матча">
+        {filters.map((item) => (
+          <Pressable
+            key={item.value}
+            accessibilityRole="radio"
+            aria-checked={filter === item.value}
+            onPress={() => setFilter(item.value)}
+            style={({ pressed }) => [
+              styles.filter,
+              filter === item.value && styles.selectedFilter,
+              pressed && styles.pressedFilter,
+            ]}
+          >
+            <Text style={[styles.filterText, filter === item.value && styles.selectedFilterText]}>
+              {item.label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
       {data ? (
         <FlatList
-          data={data.matches}
+          data={matches}
           keyExtractor={(match) => match.id}
           contentContainerStyle={styles.list}
+          ListEmptyComponent={<Text style={styles.subtitle}>В этой категории пока нет матчей.</Text>}
           renderItem={({ item }) => (
             <View style={styles.card}>
               <Text style={styles.status}>{statusLabels[item.status] ?? 'Статус уточняется'}</Text>
@@ -73,6 +109,12 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: '700', color: '#222' },
   subtitle: { fontSize: 13, color: '#777', marginTop: 8, marginBottom: 16 },
   list: { paddingBottom: 24 },
+  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
+  filter: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 12, borderWidth: 1, borderColor: '#ddd', borderRadius: 6 },
+  selectedFilter: { backgroundColor: '#333', borderColor: '#333' },
+  pressedFilter: { opacity: 0.7 },
+  filterText: { fontSize: 13, color: '#333' },
+  selectedFilterText: { color: '#fff' },
   card: { padding: 16, borderWidth: 1, borderColor: '#ddd', borderRadius: 8, marginBottom: 12 },
   status: { color: '#666', fontSize: 12, marginBottom: 10 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 6 },
